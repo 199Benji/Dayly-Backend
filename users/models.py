@@ -21,3 +21,12 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.username
+    
+    # For OTP verification
+    otp = models.CharField(max_length=6, blank=True, null=True)
+    otp_created_at = models.DateTimeField(blank=True, null=True)
+    is_verified = models.BooleanField(default=False)
+
+    #Accept same name
+    display_name = models.CharField(max_length=255, blank=True)
+    profile_picture = models.ImageField(upload_to='profile_pics/', null=True, blank=True)

@@ -21,5 +21,7 @@ from django.urls import path, include
 urlpatterns = [
     path("admin/", admin.site.urls),
     path('api/users/', include('users.urls')), 
+
+    path('accounts/', include('allauth.urls')),  # <--- Login with Goggle Endpoint
 ]
 

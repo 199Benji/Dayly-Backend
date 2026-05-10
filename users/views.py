@@ -6,10 +6,15 @@ from django.conf import settings
 from django.utils.html import strip_tags
 from rest_framework import generics, status
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
+
+# Google Social Auth Imports
+from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
+from allauth.socialaccount.providers.oauth2.client import OAuth2Client
+from dj_rest_auth.registration.views import SocialLoginView
 
 from .serializers import UserRegistrationSerializer
-from .models import User
+from .models import User, UserPlatform
 
 # --- 1. REGISTRATION VIEW ---
 class RegisterUserView(generics.CreateAPIView):
@@ -110,7 +115,57 @@ class VerifyOTPView(generics.GenericAPIView):
             return Response({"error": "User with this email does not exist."}, status=status.HTTP_404_NOT_FOUND)
 
 
-# --- 3. PASSWORD RESET REQUEST VIEW ---
+# --- 3. RESEND OTP VIEW ---
+class ResendOTPView(generics.GenericAPIView):
+    """
+    Generates and sends a fresh OTP if the user didn't get the first one.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email')
+        try:
+            user = User.objects.get(email=email)
+            
+            # Prevent spamming if account is already verified
+            if user.is_verified:
+                return Response({"message": "Account already verified. Please log in."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Generate new OTP and reset the timer
+            new_otp = str(random.randint(100000, 999999))
+            user.otp = new_otp
+            user.otp_created_at = timezone.now()
+            user.save()
+
+            # Email Drafting (Reusing the registration style)
+            try:
+                subject = "New Verification Code: Dayly"
+                greeting_name = user.display_name if user.display_name else user.username
+                html_content = f"""
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px;">
+                    <h2 style="color: #4A90E2; text-align: center;">New Verification Code</h2>
+                    <p>Hi <strong>{greeting_name}</strong>,</p>
+                    <p>Here is your fresh verification code. Remember, it is only valid for 2 minutes:</p>
+                    <div style="background: #f9f9f9; padding: 20px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; color: #333; border-radius: 8px; margin: 20px 0;">
+                        {new_otp}
+                    </div>
+                    <p style="text-align: center; font-style: italic; color: #999;">"Progress is built one habit at a time."</p>
+                </div>
+                """
+                msg = EmailMultiAlternatives(subject, strip_tags(html_content), settings.EMAIL_HOST_USER, [user.email])
+                msg.attach_alternative(html_content, "text/html")
+                msg.send()
+
+                return Response({"message": "A fresh verification code has been sent to your email."}, status=status.HTTP_200_OK)
+            except Exception as e:
+                print(f"Resend OTP Error: {e}")
+                return Response({"error": "Failed to send email. Please try again."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        except User.DoesNotExist:
+            return Response({"error": "No user found with this email."}, status=status.HTTP_404_NOT_FOUND)
+
+
+# --- 4. PASSWORD RESET REQUEST VIEW ---
 class PasswordResetRequestView(generics.GenericAPIView):
     """
     Sends a 6-digit OTP to the user's email for password recovery.
@@ -159,7 +214,7 @@ class PasswordResetRequestView(generics.GenericAPIView):
             return Response({"message": "If this email is registered, you will receive a code."}, status=status.HTTP_200_OK)
 
 
-# --- 4. PASSWORD RESET CONFIRM VIEW ---
+# --- 5. PASSWORD RESET CONFIRM VIEW ---
 class PasswordResetConfirmView(generics.GenericAPIView):
     """
     Verifies the Reset OTP and updates the user's password.
@@ -191,3 +246,50 @@ class PasswordResetConfirmView(generics.GenericAPIView):
 
         except User.DoesNotExist:
             return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+
+# --- 6. PLATFORM SETUP VIEW ---
+class SetupPlatformsView(generics.GenericAPIView):
+    """
+    Handles the dashboard popup where users submit their social platforms.
+    Updates profile_completed to True once submitted.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        platforms_data = request.data.get('platforms', [])
+
+        if not platforms_data:
+            return Response({"error": "Please add at least one platform to proceed."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            for platform in platforms_data:
+                UserPlatform.objects.create(
+                    user=user,
+                    platform_name=platform.get('name'),
+                    handle=platform.get('handle'),
+                    link=platform.get('link', '')
+                )
+
+            user.profile_completed = True
+            user.save()
+
+            return Response({
+                "message": "Profile setup complete!",
+                "profile_completed": user.profile_completed
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": "An error occurred while saving your platforms."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# --- 7. GOOGLE LOGIN VIEW ---
+class GoogleLoginView(SocialLoginView):
+    """
+    Receives an access_token or code from Google 
+    and returns Dayly JWT tokens.
+    """
+    adapter_class = GoogleOAuth2Adapter
+    callback_url = "http://localhost:5173" # React Frontend URL
+    client_class = OAuth2Client

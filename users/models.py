@@ -30,3 +30,13 @@ class User(AbstractUser):
     #Accept same name
     display_name = models.CharField(max_length=255, blank=True)
     profile_picture = models.ImageField(upload_to='profile_pics/', null=True, blank=True)
+
+    # --- TRACKER MODEL ---
+class UserPlatform(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="platforms")
+    platform_name = models.CharField(max_length=50) # e.g., Facebook, X, LinkedIn
+    handle = models.CharField(max_length=100) # Their social media handle
+    link = models.URLField(blank=True) # Optional link to their profile
+
+    def __str__(self):
+        return f"{self.user.username} on {self.platform_name}"

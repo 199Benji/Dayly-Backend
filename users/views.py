@@ -292,4 +292,4 @@ class GoogleLoginView(SocialLoginView):
     """
     adapter_class = GoogleOAuth2Adapter
     callback_url = "http://localhost:5173" # React Frontend URL
-    client_class = OAuth2Client
+    client_class = OAuth2Client 

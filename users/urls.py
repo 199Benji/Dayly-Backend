@@ -33,4 +33,4 @@ urlpatterns = [
 
     # LOGIN WITH GOOGLE
 path('google/', GoogleLoginView.as_view(), name='google_login'),
-]
+]                                                                               

@@ -17,11 +17,20 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import path, include
+#For static files 
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path('api/users/', include('users.urls')), 
 
     path('accounts/', include('allauth.urls')),  # <--- Login with Goggle Endpoint
+    
+    path('api/trackers/', include('trackers.urls')),
 ]
+
+# This allows you to view uploaded proof images in your browser while DEBUG is True
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

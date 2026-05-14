@@ -64,7 +64,7 @@ class RegisterUserView(generics.CreateAPIView):
                 msg.send()
 
                 # THE ADMIN NOTIFICATION + STYLING
-                admin_subject = f"🚀 New Member: {user.username}"
+                admin_subject = f"New Member: {user.username}"
                 admin_msg = f"New Creator Alert!\n\nName: {user.username}\nEmail: {user.email}\nProfession: {user.profession}"
                 send_mail(admin_subject, admin_msg, settings.EMAIL_HOST_USER, ['benjaminmiracle719@gmail.com'])
 

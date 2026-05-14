@@ -204,6 +204,10 @@ JWT_AUTH_COOKIE = 'dayly-auth'  # This helps with frontend security later
 
 STATIC_URL = "static/"
 
+# Add these lines for Media files (User Uploads)
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
